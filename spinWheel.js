@@ -2,7 +2,7 @@ const wheel = document.getElementById('wheel');
 const spinBtn = document.getElementById('spin-btn');
 const resultDiv = document.getElementById('result');
 
-// 확률표 (합=100)
+// 확률표
 const probsRaw = [
   {label:"1등", weight:5},
   {label:"2등", weight:11},
@@ -21,7 +21,6 @@ const colorMap = {
 };
 const total = probsRaw.reduce((a,b)=>a+b.weight,0);
 
-// 같은 등수가 이웃하지 않도록 재배치
 function reorderNoAdjSame(arr){
   const inArr=[...arr], out=[];
   while(inArr.length){
@@ -36,8 +35,8 @@ function reorderNoAdjSame(arr){
     }
     if(!placed && out.length>=2){
       const last=inArr.shift();
-      const t=out[out.length-1]; 
-      out[out.length-1]=out[out.length-2]; 
+      const t=out[out.length-1];
+      out[out.length-1]=out[out.length-2];
       out[out.length-2]=t;
       out.push(last);
     }
@@ -46,7 +45,7 @@ function reorderNoAdjSame(arr){
 }
 const probs = reorderNoAdjSame(probsRaw);
 
-// 돌림판 배경 그라디언트와 각도 표 만들기
+// 돌림판 배경 그리기
 function makeWheelGradient(){
   let start=0, stops=[];
   for(let i=0;i<probs.length;i++){
@@ -59,7 +58,7 @@ function makeWheelGradient(){
     probs[i].mid   = (start+end)/2;
     start=end;
   }
-  probs[probs.length-1].end = 360; // 마지막 보정
+  probs[probs.length-1].end = 360;
   wheel.style.background = `conic-gradient(from -90deg, ${stops.join(",")})`;
 }
 
@@ -70,7 +69,6 @@ function placeLabels(){
     labels = document.createElement("div");
     labels.id = "labels";
     labels.className = "labels";
-    // wheel 안이 아니라 부모에 붙여서 회전 영향 없음
     wheel.parentElement.appendChild(labels);
   }
   labels.innerHTML="";
@@ -78,7 +76,6 @@ function placeLabels(){
     const span = document.createElement("span");
     span.textContent = p.label;
     const midTop = p.mid - 90;
-    // 👉 마지막 rotate(-midTop) 제거 → 글자가 중심 바라봄
     span.style.transform = `translate(-50%,-50%) rotate(${midTop}deg) translateY(-28vh)`;
     labels.appendChild(span);
     p.el = span;
@@ -88,54 +85,69 @@ function placeLabels(){
 makeWheelGradient();
 placeLabels();
 
-let spinning=false, angle=0, speed=0, raf;
+let spinning=false, angle=0, raf=null, targetAngle=0, chosen=null;
 
-function spin(){
-  angle += speed;
+// 확률로 하나 뽑기
+// 확률로 하나 뽑기 (섹터 비율과 무관, 고정 확률)
+function pickResult(){
+  let r = Math.random() * 100; // 0~100
+  let label;
+  if (r < 5) label = "1등";       // 10%
+  else if (r < 30) label = "2등";  // 20%
+  else if (r < 70) label = "3등";  // 40%
+  else label = "4등";              // 30%
+
+  // 선택된 label과 같은 섹터들 중 랜덤 하나 뽑기
+  const candidates = probs.filter(p => p.label === label);
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+
+// 부드럽게 목표에 수렴하는 애니메이션
+function animateToTarget(){
+  const ease = 0.07; // ← 회전 속도 천천히
+  const delta = targetAngle - angle;
+  angle += delta * ease;
+
   wheel.style.transform = `rotate(${angle}deg)`;
-  if(speed>0.3){
-    speed *= 0.985; // 감속
-    raf = requestAnimationFrame(spin);
-  } else {
-    speed = 0;
+
+  if (Math.abs(delta) < 0.5) {
+    angle = targetAngle;
+    wheel.style.transform = `rotate(${angle}deg)`;
     finish();
+  } else {
+    raf = requestAnimationFrame(animateToTarget);
   }
 }
 
-function finish() {
-  cancelAnimationFrame(raf);
-  const rawAngle = ((angle % 360) + 360) % 360;
-  const arrowAngle = (rawAngle + 90) % 360; // 화살표 기준 (12시 방향)
-
-  let picked = null;
-  for (const p of probs) {
-    if (arrowAngle >= p.start && arrowAngle < p.end) {
-      picked = p;
-      break;
-    }
-  }
-  if (!picked) picked = probs[probs.length - 1];
-
-  if (picked) {
-    resultDiv.textContent = "결과: " + picked.label;
-    resultDiv.style.display = 'block';
-    probs.forEach(p => p.el.classList.remove("selected"));
-    picked.el.classList.add("selected");
-  } else {
-    resultDiv.textContent = "결과 계산 실패";
-    resultDiv.style.display = 'block';
-  }
-
+function finish(){
+  if (raf) cancelAnimationFrame(raf);
+  resultDiv.textContent = "결과: " + chosen.label;
+  resultDiv.style.display = 'block';
+  probs.forEach(p => p.el.classList.remove("selected"));
+  chosen.el.classList.add("selected");
   spinning = false;
   spinBtn.textContent = "다시 돌리기";
 }
 
+// 클릭 이벤트
 spinBtn.addEventListener("click", ()=>{
   if(spinning) return;
   spinning=true;
   resultDiv.textContent = "돌리는 중...";
   resultDiv.style.display = 'block';
   spinBtn.textContent = "돌리는 중...";
-  speed = 25;
-  spin();
+
+  // 1. 확률로 결과 뽑기
+  chosen = pickResult();
+
+  // 2. 목표 각도 = chosen.mid를 위쪽(12시 화살표)에 맞추기
+  const mid = (chosen.start + chosen.end) / 2;
+  const corrected = (mid + 270) % 360; // 3시 기준 → 12시 기준으로 보정
+  targetAngle = 360*5 + (360 - corrected);
+
+  // 3. 초기화 후 시작
+  angle = 0;
+  if (raf) cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(animateToTarget);
 });

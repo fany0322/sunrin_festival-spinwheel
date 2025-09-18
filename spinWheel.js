@@ -4,11 +4,11 @@ const resultDiv = document.getElementById('result');
 
 // 확률표
 const probsRaw = [
-  {label:"1등", weight:5},
+  {label:"1등", weight:3},
   {label:"2등", weight:11},
-  {label:"3등", weight:15},
-  {label:"3등", weight:18},
-  {label:"4등", weight:22},
+  {label:"3등", weight:12},
+  {label:"3등", weight:12},
+  {label:"4등", weight:25},
   {label:"4등", weight:10},
   {label:"2등", weight:11},
   {label:"4등", weight:8}
@@ -92,11 +92,11 @@ let spinning=false, angle=0, raf=null, targetAngle=0, chosen=null;
 function pickResult(){
   let r = Math.random() * 100; // 0~100
   let label;
-  if (r < 5) label = "1등";       // 10%
+  if (r < 5) label = "1등";       // 10% ㄴㄴ 5%
   else if (r < 30) label = "2등";  // 20%
   else if (r < 70) label = "3등";  // 40%
   else label = "4등";              // 30%
-
+  console.log(label);
   // 선택된 label과 같은 섹터들 중 랜덤 하나 뽑기
   const candidates = probs.filter(p => p.label === label);
   return candidates[Math.floor(Math.random() * candidates.length)];
@@ -105,7 +105,7 @@ function pickResult(){
 
 // 부드럽게 목표에 수렴하는 애니메이션
 function animateToTarget(){
-  const ease = 0.07; // ← 회전 속도 천천히
+  const ease = 0.04; // 회전 속도 !!!!!
   const delta = targetAngle - angle;
   angle += delta * ease;
 

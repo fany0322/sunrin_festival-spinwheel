@@ -27,9 +27,6 @@ const colorMap = {
 // 전체 weight 합
 const total = probsRaw.reduce((a, b) => a + b.weight, 0);
 
-// ★ 각도 정규화 헬퍼 추가
-const norm = (deg) => ((deg % 360) + 360) % 360;
-
 // 같은 등수 연속 배치 방지
 function reorderNoAdjSame(arr) {
   const inArr = [...arr], out = [];
@@ -97,61 +94,17 @@ placeLabels();
 
 // 상태 변수
 let spinning = false, angle = 0, raf = null, targetAngle = 0, chosen = null;
-// ★ 추가: 첫 선택 라벨 저장 & 단계별 감속계수
-let firstPickLabel = null;
 let currentEase = 0.04;
 
-// 추첨 (테스트용 확률, 일부러 1등 비율 크게 줌)
+// 추첨 (무조건 1등 반환, 테스트용)
 function pickResult() {
-  let r = Math.random() * 100;
-  let label;
-
-  if (r < 50) {
-    label = "1등";
-  } else if (r < 25) {
-    label = "2등";
-  } else if (r < 40) {
-    label = "3등";
-  } else {
-    label = "4등";
-  }
-
-  const candidates = probs.filter(p => p.label === label);
-  const picked = candidates[Math.floor(Math.random() * candidates.length)];
-
-  console.log("[pickResult] r:", r.toFixed(2), "→ label:", label, "→ picked:", picked);
-  return picked;
+  return probs.find(p => p.label === "1등");
 }
-
-// 추첨 (1등 제외)
- function pickResultNoFirst() {
-  let r = Math.random() * 100;
-  let label;
-
-  if (r < 20) {          // 20%
-    label = "2등";
-  } else if (r < 60) {   // 40%
-    label = "3등";
-  } else {               // 40%
-    label = "4등";
-  }
-
-  const candidates = probs.filter(p => p.label === label);
-  const picked = candidates[Math.floor(Math.random() * candidates.length)];
-
-  console.log("[pickResultNoFirst] r:", r.toFixed(2),
-              "→ label:", label,
-              "→ picked mid:", picked.mid.toFixed(2));
-  return picked;
-}
-
-
 
 // 애니메이션
 function animateToTarget() {
-  const ease = currentEase; 
   const delta = targetAngle - angle;
-  angle += delta * ease;
+  angle += delta * currentEase;
   wheel.style.transform = `rotate(${angle}deg)`;
 
   if (Math.abs(delta) < 0.5) {
@@ -162,45 +115,47 @@ function animateToTarget() {
     raf = requestAnimationFrame(animateToTarget);
   }
 }
-function finish() {
+
+// 최종 처리
+ function finish() {
   if (raf) cancelAnimationFrame(raf);
 
   if (chosen.label === "1등") {
     console.log("[finish] 1등 걸림 → prank 발동");
+
     prank.style.display = "block";
     prank.classList.add("hit-left");
     if (typeof prankText !== "undefined") prankText.style.display = "block";
 
     prank.addEventListener("animationend", () => {
-      console.log("[finish] prank 끝, 새 추첨 시작");
+      console.log("[finish] prank 끝 → weight=11 2등 or weight=10 4등으로 이동");
+
       prank.style.display = "none";
       prank.classList.remove("hit-left");
       if (typeof prankText !== "undefined") prankText.style.display = "none";
 
-      // ✅ 1등 제외 추첨
-      chosen = pickResultNoFirst();
+      // ✅ 후보 = weight=11 2등 + weight=10 4등
+      const candidates = probs.filter(
+        p => (p.label === "2등" && p.weight === 11) ||
+             (p.label === "4등" && p.weight === 10)
+      );
 
-      // ✅ 중앙 각도 계산
+      // 무조건 둘 중 하나 랜덤
+      chosen = candidates[Math.floor(Math.random() * candidates.length)];
+
+      // 중앙각 계산
       const mid = (chosen.start + chosen.end) / 2;
       const corrected = (mid + 270) % 360;
 
-      // ✅ 다시 angle 리셋
-      angle = 0;
+      // ✅ 현재 angle에서 가장 가까운 방향으로 조금만 이동
+      let diff = (360 - corrected) - (angle % 360);
+      diff = ((diff + 540) % 360) - 180; // -180~+180 중 최소 이동
+      targetAngle = angle + diff;
 
-      // ✅ 0.2~0.8 바퀴만 돌고 중앙에 딱 맞추기
-      const spinTurns = 0.2 + Math.random() * 0.6;
-      targetAngle = 360 * spinTurns + (360 - corrected);
-
-      // ✅ 천천히 멈추도록
-      currentEase = 0.02;
-
-      console.log("[re-spin] chosen:", chosen.label,
-                  "| mid:", mid.toFixed(2),
-                  "| corrected:", corrected.toFixed(2),
-                  "| targetAngle:", targetAngle.toFixed(2));
-
+      currentEase = 0.02; // 천천히 수렴
       raf = requestAnimationFrame(animateToTarget);
     }, { once: true });
+
     return;
   }
 
@@ -216,31 +171,24 @@ function finish() {
   spinBtn.textContent = "다시 돌리기";
 }
 
-// 스핀 버튼
+
+// 버튼
 spinBtn.addEventListener("click", () => {
   if (spinning) return;
 
   spinning = true;
   resultDiv.textContent = "돌리는 중...";
   resultDiv.style.display = 'block';
-  spinBtn.textContent = "돌리는 중...";
+  spinBtn.textContent = "";
 
-  // ★ 1차 스핀은 기본 속도
-  currentEase = 0.04;
-
-  chosen = pickResult(); 
-  firstPickLabel = chosen ? chosen.label : null; // ★ 첫 선택 라벨 저장
+  chosen = pickResult();
 
   const mid = (chosen.start + chosen.end) / 2;
   const corrected = (mid + 270) % 360;
-  targetAngle = 360 * 5 + (360 - corrected);
 
-  console.log(
-    "[spin] chosen:", chosen.label,
-    "| mid:", mid.toFixed(2),
-    "| corrected:", corrected.toFixed(2),
-    "| targetAngle:", targetAngle.toFixed(2)
-  );
+  // 🔹 처음은 6바퀴 돌리고 약간 느리게
+  targetAngle = 360 * 6 + (360 - corrected);
+  currentEase = 0.025;
 
   angle = 0;
   if (raf) cancelAnimationFrame(raf);

@@ -16,7 +16,6 @@ const probsRaw = [
   { label: "4등", weight: 8 }
 ];
 
-// 색상 맵
 const colorMap = {
   "1등": "#ff4d4d",
   "2등": "#ffb84d",
@@ -27,7 +26,6 @@ const colorMap = {
 // 전체 weight 합
 const total = probsRaw.reduce((a, b) => a + b.weight, 0);
 
-// 같은 등수 연속 배치 방지
 function reorderNoAdjSame(arr) {
   const inArr = [...arr], out = [];
   while (inArr.length) {
@@ -52,7 +50,6 @@ function reorderNoAdjSame(arr) {
 }
 const probs = reorderNoAdjSame(probsRaw);
 
-// 배경 그리기
 function makeWheelGradient() {
   let start = 0, stops = [];
   for (let i = 0; i < probs.length; i++) {
@@ -70,7 +67,6 @@ function makeWheelGradient() {
 }
 makeWheelGradient();
 
-// 라벨 배치
 function placeLabels() {
   let labels = document.getElementById("labels");
   if (!labels) {
@@ -92,21 +88,26 @@ function placeLabels() {
 }
 placeLabels();
 
-// 상태 변수
+// 상태
 let spinning = false, angle = 0, raf = null, targetAngle = 0, chosen = null;
 let currentEase = 0.04;
 
-// 추첨 (무조건 1등 반환, 테스트용)
+// 실제 확률 기반 추첨
 function pickResult() {
-  return probs.find(p => p.label === "1등");
+  const r = Math.random() * 100;
+  let label;
+  if (r < 5) label = "1등";       // 5%
+  else if (r < 25) label = "2등"; // 20%
+  else if (r < 60) label = "3등"; // 35%
+  else label = "4등";             // 40%
+  const candidates = probs.filter(p => p.label === label);
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-// 애니메이션
 function animateToTarget() {
   const delta = targetAngle - angle;
   angle += delta * currentEase;
   wheel.style.transform = `rotate(${angle}deg)`;
-
   if (Math.abs(delta) < 0.5) {
     angle = targetAngle;
     wheel.style.transform = `rotate(${angle}deg)`;
@@ -116,63 +117,62 @@ function animateToTarget() {
   }
 }
 
-// 최종 처리
- function finish() {
+function finish() {
   if (raf) cancelAnimationFrame(raf);
 
   if (chosen.label === "1등") {
-    console.log("[finish] 1등 걸림 → prank 발동");
-
     prank.style.display = "block";
     prank.classList.add("hit-left");
     if (typeof prankText !== "undefined") prankText.style.display = "block";
 
     prank.addEventListener("animationend", () => {
-      console.log("[finish] prank 끝 → weight=11 2등 or weight=10 4등으로 이동");
-
       prank.style.display = "none";
       prank.classList.remove("hit-left");
       if (typeof prankText !== "undefined") prankText.style.display = "none";
 
-      // ✅ 후보 = weight=11 2등 + weight=10 4등
       const candidates = probs.filter(
         p => (p.label === "2등" && p.weight === 11) ||
              (p.label === "4등" && p.weight === 10)
       );
-
-      // 무조건 둘 중 하나 랜덤
       chosen = candidates[Math.floor(Math.random() * candidates.length)];
 
-      // 중앙각 계산
       const mid = (chosen.start + chosen.end) / 2;
       const corrected = (mid + 270) % 360;
 
-      // ✅ 현재 angle에서 가장 가까운 방향으로 조금만 이동
       let diff = (360 - corrected) - (angle % 360);
-      diff = ((diff + 540) % 360) - 180; // -180~+180 중 최소 이동
+      diff = ((diff + 540) % 360) - 180;
       targetAngle = angle + diff;
 
-      currentEase = 0.02; // 천천히 수렴
+      currentEase = 0.02;
       raf = requestAnimationFrame(animateToTarget);
     }, { once: true });
-
     return;
   }
 
-  // ✅ 정상 결과 출력
-  console.log("[finish] 최종 결과:", chosen.label);
   resultDiv.textContent = "결과: " + chosen.label;
   resultDiv.style.display = 'block';
 
   probs.forEach(p => p.el.classList.remove("selected"));
   chosen.el.classList.add("selected");
 
+  // 폭죽
+  if (chosen.label !== "1등") {
+    launchConfetti();
+  }
+
+  // 중앙 텍스트 (2/3/4등)
+  if (chosen.label !== "1등") {
+    const msg = document.createElement("div");
+    msg.className = "result-text";
+    msg.textContent = `${chosen.label}`;
+    document.body.appendChild(msg);
+    setTimeout(() => msg.remove(), 2000);
+  }
+
   spinning = false;
   spinBtn.textContent = "다시 돌리기";
 }
 
-
-// 버튼
 spinBtn.addEventListener("click", () => {
   if (spinning) return;
 
@@ -182,11 +182,9 @@ spinBtn.addEventListener("click", () => {
   spinBtn.textContent = "";
 
   chosen = pickResult();
-
   const mid = (chosen.start + chosen.end) / 2;
   const corrected = (mid + 270) % 360;
 
-  // 🔹 처음은 6바퀴 돌리고 약간 느리게
   targetAngle = 360 * 6 + (360 - corrected);
   currentEase = 0.025;
 
@@ -194,3 +192,31 @@ spinBtn.addEventListener("click", () => {
   if (raf) cancelAnimationFrame(raf);
   raf = requestAnimationFrame(animateToTarget);
 });
+
+// 폭죽
+function launchConfetti() {
+  const colors = ["#ff4d4d", "#ffb84d", "#4db2ff", "#7dff4d", "#fff"];
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+
+  for (let i = 0; i < 60; i++) { // 폭죽 개수 살짝 증가
+    const conf = document.createElement("div");
+    conf.className = "confetti";
+    conf.style.background = colors[Math.floor(Math.random() * colors.length)];
+    conf.style.left = `${centerX}px`;
+    conf.style.top = `${centerY}px`;
+
+    // 🔥 각도 범위를 전체 360도로 확장 → 좌/우 양쪽 발사
+    const angle = (Math.random() * 360) * (Math.PI / 180);
+    const distance = 300 + Math.random() * 200; // 멀리 퍼지게
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance;
+
+    conf.style.setProperty("--dx", `${dx}px`);
+    conf.style.setProperty("--dy", `${dy}px`);
+
+    document.body.appendChild(conf);
+    setTimeout(() => conf.remove(), 1200);
+  }
+}
+

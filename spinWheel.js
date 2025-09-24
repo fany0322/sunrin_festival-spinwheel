@@ -185,8 +185,8 @@ spinBtn.addEventListener("click", () => {
   const mid = (chosen.start + chosen.end) / 2;
   const corrected = (mid + 270) % 360;
 
-  targetAngle = 360 * 6 + (360 - corrected);
-  currentEase = 0.025;
+  targetAngle = 360 * 15 + (360 - corrected);
+  currentEase = 0.01;
 
   angle = 0;
   if (raf) cancelAnimationFrame(raf);
@@ -219,4 +219,3 @@ function launchConfetti() {
     setTimeout(() => conf.remove(), 1200);
   }
 }
-

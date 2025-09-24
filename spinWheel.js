@@ -186,7 +186,7 @@ spinBtn.addEventListener("click", () => {
   const corrected = (mid + 270) % 360;
 
   targetAngle = 360 * 15 + (360 - corrected);
-  currentEase = 0.01;
+  currentEase = 0.02;
 
   angle = 0;
   if (raf) cancelAnimationFrame(raf);

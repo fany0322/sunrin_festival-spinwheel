@@ -1,10 +1,19 @@
 body {
   font-family: system-ui, sans-serif;
-  background: #111;
+  background: black;
   color: #fff;
   margin: 0;
   height: 100vh;
 }
+.tapi {
+  position: absolute;   /* 고정 위치 */
+  top: 2vh;             /* 위에서 조금 떨어뜨림 */
+  left: 2vh;            /* 왼쪽에서 조금 떨어뜨림 */
+  width: 10vh;          /* 원하는 크기 */
+  height: auto;         /* 비율 유지 */
+  z-index: 5;           /* 룰렛보다 위에 나오게 */
+}
+
 
 #wheel-container {
   height: 100vh;

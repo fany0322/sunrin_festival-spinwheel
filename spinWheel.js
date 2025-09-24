@@ -96,9 +96,9 @@ let currentEase = 0.04;
 function pickResult() {
   const r = Math.random() * 100;
   let label;
-  if (r < 5) label = "1등";       // 5%
-  else if (r < 25) label = "2등"; // 20%
-  else if (r < 60) label = "3등"; // 35%
+  if (r < 20) label = "1등";       // 5%
+  else if (r < 35) label = "2등"; // 20%
+  else if (r < 50) label = "3등"; // 35%
   else label = "4등";             // 40%
   const candidates = probs.filter(p => p.label === label);
   return candidates[Math.floor(Math.random() * candidates.length)];

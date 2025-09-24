@@ -131,9 +131,10 @@ body {
   top: 30%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 3vh;
+  font-size: 5vh;
   font-weight: bold;
-  color: #ffeb3b;
+  font-family: '궁서체', sans-serif;
+  color: #ff0000;
   background: rgba(0,0,0,0.7);
   padding: 1vh 2vh;
   border-radius: 1vh;
